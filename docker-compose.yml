@@ -1,4 +1,16 @@
 services:
+  app:
+    build: .
+    container_name: url_shortener_app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/urlshortener
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+
   db:
     image: postgres:15
     container_name: url_shortener_db
