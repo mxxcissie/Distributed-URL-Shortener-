@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.database import engine, Base, get_db
-from app import models, schemas, crud
+from app import models, schemas, crud, cache
 
 app = FastAPI()
 
@@ -23,6 +23,12 @@ def db_health():
         value = result.scalar()
 
     return {"database_status": "ok", "result": value}
+
+
+@app.get("/redis-health")
+def redis_health():
+    cache.cache_ping = cache.redis_client.ping()
+    return {"redis_status": "ok", "ping": cache.cache_ping}
 
 
 @app.post("/shorten", response_model=schemas.ShortenResponse)
@@ -52,11 +58,20 @@ def get_stats(short_code: str, db: Session = Depends(get_db)):
 
 @app.get("/{short_code}")
 def redirect_to_url(short_code: str, db: Session = Depends(get_db)):
+    cached_url = cache.get_cached_url(short_code)
+
+    if cached_url:
+        db_url = crud.get_url_by_code(db, short_code)
+        if db_url:
+            crud.increment_click_count(db, db_url)
+        return RedirectResponse(url=cached_url)
+
     db_url = crud.get_url_by_code(db, short_code)
 
     if not db_url:
         raise HTTPException(status_code=404, detail="Short URL not found")
 
+    cache.set_cached_url(short_code, db_url.original_url)
     crud.increment_click_count(db, db_url)
 
     return RedirectResponse(url=db_url.original_url)
