@@ -18,3 +18,14 @@ def create_short_url(db: Session, original_url: str):
     db.refresh(db_url)
 
     return db_url
+
+
+def get_url_by_code(db: Session, short_code: str):
+    return db.query(models.URL).filter(models.URL.short_code == short_code).first()
+
+
+def increment_click_count(db: Session, db_url):
+    db_url.click_count += 1
+    db.commit()
+    db.refresh(db_url)
+    return db_url
