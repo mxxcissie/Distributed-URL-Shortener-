@@ -1,0 +1,23 @@
+from fastapi.testclient import TestClient
+from app.main import app
+from app.cache import redis_client
+
+client = TestClient(app)
+
+
+def test_redirect_to_original_url():
+    for key in redis_client.keys("rate_limit:*"):
+        redis_client.delete(key)
+
+    create_response = client.post(
+        "/shorten",
+        json={"original_url": "https://www.google.com"}
+    )
+    assert create_response.status_code == 200
+
+    short_code = create_response.json()["short_code"]
+
+    redirect_response = client.get(f"/{short_code}", follow_redirects=False)
+
+    assert redirect_response.status_code in (307, 302)
+    assert redirect_response.headers["location"] == "https://www.google.com/"

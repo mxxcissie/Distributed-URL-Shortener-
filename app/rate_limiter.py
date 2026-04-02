@@ -6,7 +6,7 @@ WINDOW_SECONDS = 60
 
 
 def check_rate_limit(request: Request):
-    client_ip = request.client.host
+    client_ip = request.client.host if request.client else "unknown"
     redis_key = f"rate_limit:{client_ip}"
 
     current_count = redis_client.get(redis_key)
