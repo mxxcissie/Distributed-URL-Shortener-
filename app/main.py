@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.database import engine, Base, get_db
 from app import models, schemas, crud, cache
+from app.rate_limiter import check_rate_limit
 
 app = FastAPI()
 
@@ -27,13 +28,19 @@ def db_health():
 
 @app.get("/redis-health")
 def redis_health():
-    cache.cache_ping = cache.redis_client.ping()
-    return {"redis_status": "ok", "ping": cache.cache_ping}
+    cache_ping = cache.redis_client.ping()
+    return {"redis_status": "ok", "ping": cache_ping}
 
 
 @app.post("/shorten", response_model=schemas.ShortenResponse)
-def shorten_url(request: schemas.ShortenRequest, db: Session = Depends(get_db)):
-    db_url = crud.create_short_url(db, request.original_url)
+def shorten_url(
+    request: Request,
+    body: schemas.ShortenRequest,
+    db: Session = Depends(get_db)
+):
+    check_rate_limit(request)
+
+    db_url = crud.create_short_url(db, body.original_url)
 
     return {
         "short_code": db_url.short_code,
