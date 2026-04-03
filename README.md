@@ -4,6 +4,18 @@ A production-style backend URL shortener built with FastAPI, PostgreSQL, Redis, 
 
 This project focuses on backend engineering beyond basic CRUD, including persistent storage, redirect caching, Redis-backed rate limiting, automated testing, and CI validation.
 
+## Why This Project
+
+This project was designed to demonstrate backend engineering fundamentals beyond simple CRUD applications, including:
+
+- API design and validation
+- database persistence and schema design
+- caching strategies
+- rate limiting
+- containerized development
+- automated testing
+- CI workflow integration
+
 ## Features
 
 - Create short URLs with `POST /shorten`
@@ -130,15 +142,3 @@ PostgreSQL (persistent storage)
 - Analytics dashboard
 - Background processing for high-scale click tracking
 - Deployment to cloud platform (e.g., Render, Fly.io)
-
-## Why This Project
-
-This project was designed to demonstrate backend engineering fundamentals beyond simple CRUD applications, including:
-
-- API design and validation
-- database persistence and schema design
-- caching strategies
-- rate limiting
-- containerized development
-- automated testing
-- CI workflow integration
