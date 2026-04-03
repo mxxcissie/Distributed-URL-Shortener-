@@ -1,13 +1,18 @@
+import logging
+
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.database import engine, Base, get_db
-from app import models, schemas, crud, cache
+from app import schemas, crud, cache
 from app.rate_limiter import check_rate_limit
 
-app = FastAPI()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(title="URL Shortener API")
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,17 +24,24 @@ def health():
 
 @app.get("/db-health")
 def db_health():
-    with engine.connect() as connection:
-        result = connection.execute(text("SELECT 1"))
-        value = result.scalar()
-
-    return {"database_status": "ok", "result": value}
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text("SELECT 1"))
+            value = result.scalar()
+        return {"database_status": "ok", "result": value}
+    except Exception as exc:
+        logger.exception("Database health check failed")
+        raise HTTPException(status_code=500, detail="Database connection failed") from exc
 
 
 @app.get("/redis-health")
 def redis_health():
-    cache_ping = cache.redis_client.ping()
-    return {"redis_status": "ok", "ping": cache_ping}
+    try:
+        cache_ping = cache.redis_client.ping()
+        return {"redis_status": "ok", "ping": cache_ping}
+    except Exception as exc:
+        logger.exception("Redis health check failed")
+        raise HTTPException(status_code=500, detail="Redis connection failed") from exc
 
 
 @app.post("/shorten", response_model=schemas.ShortenResponse)
@@ -40,12 +52,17 @@ def shorten_url(
 ):
     check_rate_limit(request)
 
-    db_url = crud.create_short_url(db, body.original_url)
+    try:
+        db_url = crud.create_short_url(db, body.original_url)
+        logger.info("Created short URL for %s", body.original_url)
 
-    return {
-        "short_code": db_url.short_code,
-        "short_url": f"http://127.0.0.1:8000/{db_url.short_code}"
-    }
+        return {
+            "short_code": db_url.short_code,
+            "short_url": f"http://127.0.0.1:8000/{db_url.short_code}"
+        }
+    except Exception as exc:
+        logger.exception("Failed to create short URL")
+        raise HTTPException(status_code=500, detail="Failed to create short URL") from exc
 
 
 @app.get("/stats/{short_code}", response_model=schemas.StatsResponse)
@@ -65,20 +82,28 @@ def get_stats(short_code: str, db: Session = Depends(get_db)):
 
 @app.get("/{short_code}")
 def redirect_to_url(short_code: str, db: Session = Depends(get_db)):
-    cached_url = cache.get_cached_url(short_code)
+    try:
+        cached_url = cache.get_cached_url(short_code)
 
-    if cached_url:
+        if cached_url:
+            logger.info("Cache hit for short code %s", short_code)
+            db_url = crud.get_url_by_code(db, short_code)
+            if db_url:
+                crud.increment_click_count(db, db_url)
+            return RedirectResponse(url=cached_url)
+
+        logger.info("Cache miss for short code %s", short_code)
         db_url = crud.get_url_by_code(db, short_code)
-        if db_url:
-            crud.increment_click_count(db, db_url)
-        return RedirectResponse(url=cached_url)
 
-    db_url = crud.get_url_by_code(db, short_code)
+        if not db_url:
+            raise HTTPException(status_code=404, detail="Short URL not found")
 
-    if not db_url:
-        raise HTTPException(status_code=404, detail="Short URL not found")
+        cache.set_cached_url(short_code, db_url.original_url)
+        crud.increment_click_count(db, db_url)
 
-    cache.set_cached_url(short_code, db_url.original_url)
-    crud.increment_click_count(db, db_url)
-
-    return RedirectResponse(url=db_url.original_url)
+        return RedirectResponse(url=db_url.original_url)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Redirect failed for short code %s", short_code)
+        raise HTTPException(status_code=500, detail="Redirect failed") from exc

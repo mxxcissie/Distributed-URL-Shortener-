@@ -11,6 +11,11 @@ A production-style backend URL shortener built with FastAPI, PostgreSQL, Redis, 
 - Protect the create endpoint with Redis-backed rate limiting
 - Run the full stack locally with Docker Compose
 - Validate the backend with automated pytest tests and GitHub Actions CI
+- Includes simple request logging and improved error handling for backend observability
+
+## Architecture
+
+- Redirect requests first check Redis for cached URL resolution. On cache miss, the app reads from PostgreSQL, stores the result in Redis, increments click count, and returns a redirect response.
 
 ## Tech Stack
 

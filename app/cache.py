@@ -10,3 +10,7 @@ def get_cached_url(short_code: str):
 
 def set_cached_url(short_code: str, original_url: str):
     redis_client.set(short_code, original_url)
+
+
+def delete_cached_url(short_code: str):
+    redis_client.delete(short_code)
