@@ -48,9 +48,32 @@ This project was designed to demonstrate backend engineering fundamentals beyond
 
 ## Project Structure
 
+```text
 app/       # backend application code
 tests/     # automated tests
 scripts/   # helper scripts such as seed data
+```
+
+## Environment Variables
+
+- `ENV`
+- `DATABASE_URL`
+- `REDIS_URL`
+- `BASE_URL`
+- `PORT`
+
+## Health Check
+
+The service exposes a health check endpoint:
+```http
+GET /health
+```
+Example:
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+## Run Locally
 
 ## How to Run Locally
 
@@ -67,9 +90,12 @@ Open:
 ```bash
 docker compose up -d db redis
 ```
-- Run the application:
+- Activate virtual environment:
 ```bash
 source venv/bin/activate
+```
+- Run the application:
+```bash
 uvicorn app.main:app --reload
 ```
 
@@ -99,6 +125,7 @@ http://127.0.0.1:8000/docs
 
 ## Architecture
 
+```text
 Client / Browser
       ↓
 FastAPI API Service
@@ -106,6 +133,7 @@ FastAPI API Service
 Redis (cache + rate limiting)
       ↓
 PostgreSQL (persistent storage)
+```
 
 ### Request Flow
 
