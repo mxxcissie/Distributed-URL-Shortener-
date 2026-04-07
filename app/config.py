@@ -7,10 +7,9 @@ DATABASE_URL = os.getenv(
     "postgresql://postgres:postgres@localhost:5432/urlshortener"
 )
 
-REDIS_URL = os.getenv(
-    "REDIS_URL",
-    #"redis://localhost:6379/0"
-)
+
+REDIS_URL = os.getenv("REDIS_URL")
+
 
 BASE_URL = os.getenv(
     "BASE_URL",

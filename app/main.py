@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -8,11 +9,20 @@ from sqlalchemy import text
 from app.database import engine, Base, get_db
 from app import schemas, crud, cache
 from app.rate_limiter import check_rate_limit
+from app.config import BASE_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="URL Shortener API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -60,7 +70,7 @@ def shorten_url(
 
         return {
             "short_code": db_url.short_code,
-            "short_url": f"http://127.0.0.1:8000/{db_url.short_code}"
+            "short_url": f"{BASE_URL}/{db_url.short_code}"  
         }
     except Exception as exc:
         logger.exception("Failed to create short URL")
@@ -104,6 +114,7 @@ def redirect_to_url(short_code: str, db: Session = Depends(get_db)):
         crud.increment_click_count(db, db_url)
 
         return RedirectResponse(url=db_url.original_url)
+
     except HTTPException:
         raise
     except Exception as exc:
