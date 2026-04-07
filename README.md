@@ -1,8 +1,8 @@
 # URL Shortener
 
-A production-style backend URL shortener built with FastAPI, PostgreSQL, Redis, Docker, pytest, and GitHub Actions CI.
+A production-style backend URL shortener built with a distributed architecture using FastAPI, PostgreSQL, Redis, Docker, pytest, and GitHub Actions CI.
 
-This project focuses on backend engineering beyond basic CRUD, including persistent storage, redirect caching, Redis-backed rate limiting, automated testing, and CI validation.
+This project emphasizes backend engineering beyond basic CRUD, focusing on performance optimization, fault tolerance, and production-ready system design.
 
 ## Live Demo
 
@@ -11,9 +11,9 @@ Base URL: `https://url-shortener-gfp0.onrender.com`
 ## Deployment
 
 - Deployed on Render (cloud platform)
-- Uses managed PostgreSQL for persistent storage
-- Redis is optional in cloud deployment and used locally for caching/rate limiting when available
-- Environment-based configuration enables seamless switching between local, Docker, and cloud environments
+- Uses managed PostgreSQL as the persistent source of truth
+- Redis is used as a shared cache and coordination layer in distributed environments, with graceful fallback when unavailable
+- Environment-based configuration enables seamless switching between local, Docker, and cloud deployments
 
 ## Quick Test
 
@@ -26,11 +26,11 @@ curl -X POST "https://url-shortener-gfp0.onrender.com/shorten" \
 
 ## Why This Project
 
-This project was built to simulate a production-style backend system rather than a simple CRUD app. It focuses on real-world backend concerns such as performance optimization, fault tolerance, and environment portability.
+This project was built to simulate a production-style backend system incorporating distributed system principles, rather than a simple CRUD application.
 
 Key goals:
 - Design a scalable API with clear request/response contracts
-- Introduce caching and rate limiting as system-level concerns
+- Introduce caching and rate limiting as core system-level concerns
 - Support multiple runtime environments (local, Docker, cloud)
 - Ensure reliability through automated testing and CI validation
 
@@ -43,15 +43,17 @@ Key goals:
 - Protect the create endpoint with Redis-backed rate limiting
 - Run the full stack locally with Docker Compose
 - Validate backend behavior with pytest and GitHub Actions CI
+- Supports horizontal scaling through stateless application instances behind a load balancer
 
 ## Backend Highlights
 
 - Designed RESTful APIs using FastAPI for URL creation, redirection, and analytics
-- Implemented PostgreSQL-backed persistence for durable storage of URL mappings
-- Integrated Redis for caching and rate limiting with graceful fallback when unavailable
-- Containerized the application using Docker Compose for consistent local development
+- Implemented PostgreSQL-backed persistence as the durable source of truth for URL mappings and analytics
+- Integrated Redis for shared caching and distributed rate limiting with graceful fallback when unavailable
+- Containerized and orchestrated multiple application instances using Docker Compose to simulate a distributed environment
 - Built automated test coverage with pytest to validate core workflows
 - Configured GitHub Actions CI to run tests on every push and pull request
+- Introduced Nginx as a load balancer to distribute traffic across multiple FastAPI instances
 
 ## Tech Stack
 
@@ -74,11 +76,11 @@ scripts/   # helper scripts such as seed data
 
 ## Environment Variables
 
-- `ENV`
-- `DATABASE_URL`
-- `REDIS_URL`
-- `BASE_URL`
-- `PORT`
+- `ENV` — runtime environment (development / production)
+- `DATABASE_URL` — PostgreSQL connection string
+- `REDIS_URL` — Redis connection string (optional)
+- `BASE_URL` — base URL for generated short links
+- `PORT` — application port
 
 ## Health Check
 
@@ -138,27 +140,71 @@ http://127.0.0.1:8000/docs
 - Open the returned short URL in your browser
 - Check click statistics: `GET /stats/{short_code}`
 
+## Distributed Architecture
+
+This project demonstrates a horizontally scalable, distributed backend architecture running locally using Docker Compose.
+
+This architecture enables horizontal scaling, fault tolerance, and consistent behavior across multiple application instances.
+
+### Components
+- Nginx load balancer
+- 3 FastAPI application replicas
+- PostgreSQL as the durable, shared source of truth
+- Redis for shared caching and distributed rate limiting
+
+### System Request Flow
+1. Client sends request to Nginx
+2. Nginx routes request to one FastAPI replica
+3. The selected instance processes the request and interacts with shared PostgreSQL and Redis
+4. Redirect requests use Redis as a cache-first lookup layer
+5. Rate limiting is enforced globally across replicas through Redis
+
 ## Architecture
 
 ```text
 Client / Browser
       ↓
-FastAPI API Service
+Nginx Load Balancer
       ↓
-Redis (cache + rate limiting)
++-----------------------------+
+|  FastAPI Application Layer  |
+|  - app1                     |
+|  - app2                     |
+|  - app3                     |
++-----------------------------+
       ↓
-PostgreSQL (persistent storage)
++--------------------------------+
+|  Shared Infrastructure         |
+|  - Redis (cache + rate limit)  |
+|  - PostgreSQL (source of truth)|
++--------------------------------+
 ```
 
-### Request Flow
+## Key Design Decisions
 
-#### Create Short URL (`POST /shorten`)
+- Introduced Nginx as a load balancer to distribute traffic across multiple FastAPI instances
+- Ensured stateless application design so any instance can handle any request
+- Used Redis as a shared cache and coordination layer for distributed rate limiting
+- Used PostgreSQL as the single source of truth for URL mappings and analytics
+
+## Distributed Validation
+
+The distributed setup was validated locally by:
+
+- verifying requests were distributed across multiple FastAPI replicas via load balancing
+- verifying Redis cache hits across different instances
+- confirming global rate limiting enforcement across replicas
+- ensuring consistent click counts through shared PostgreSQL storage
+
+## Request Flow
+
+### Create Short URL (`POST /shorten`)
 - Request enters FastAPI
 - Redis-backed rate limiter validates request frequency
 - Short code is generated and checked for uniqueness
 - Mapping is stored in PostgreSQL
 
-#### Redirect (`GET /{short_code}`)
+### Redirect (`GET /{short_code}`)
 - FastAPI checks Redis cache for the short code
 - On cache hit → return redirect immediately (low latency)
 - On cache miss:
@@ -167,22 +213,25 @@ PostgreSQL (persistent storage)
   - Increment click count
   - Return redirect response
 
-#### Stats (`GET /stats/{short_code}`)
+### Stats (`GET /stats/{short_code}`)
 - Retrieve URL metadata and click count from PostgreSQL
 
 ## Design Notes
 
-- PostgreSQL is used for durable storage of URL mappings and analytics
-- Redis improves performance for read-heavy redirect traffic
-- Rate limiting is applied only to POST /shorten to prevent abuse
-- Click counts are updated even on cache hits to maintain consistency
-- Short codes are generated randomly and checked for uniqueness
-- Designed Redis as an optional dependency, enabling the service to remain fully functional in environments without cache infrastructure
+- PostgreSQL is used as the single source of truth for URL mappings and analytics, ensuring consistency across all application instances
+- Redis is used as a shared cache layer to optimize read-heavy redirect traffic and reduce database load
+- Rate limiting is enforced using Redis to ensure global limits across all replicas, preventing per-instance bypass
+- The application is designed to be stateless, allowing any FastAPI instance to handle any request
+- Click counts are updated even on cache hits to maintain consistency between cache and persistent storage
+- Short codes are generated randomly and validated with a database uniqueness constraint to avoid collisions
+- Redis is treated as an optional dependency, allowing the service to remain functional without caching, with reduced performance
+- Nginx is used as a load balancer to distribute incoming requests across multiple FastAPI instances for scalability and fault tolerance
+- The system is designed to support horizontal scaling by adding more application instances without changing the client interface
 
 ## Future Improvements
 
 - Introduce background workers for asynchronous click tracking
-- Add distributed rate limiting using centralized cache
+- Enhance rate limiting with sliding window or token bucket algorithms
 - Implement custom aliases and expiration policies
 - Build analytics aggregation pipeline for high-volume traffic
-- Deploy multi-instance setup with load balancing
+- Deploy multi-instance setup to cloud using container orchestration (e.g., Kubernetes)

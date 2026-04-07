@@ -24,7 +24,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Base.metadata.create_all(bind=engine)
+
+@app.on_event("startup")
+def startup_log():
+    logger.info("Starting instance %s", INSTANCE_NAME)
+    Base.metadata.create_all(bind=engine)
 
 
 @app.middleware("http")
@@ -38,7 +42,8 @@ async def log_requests(request: Request, call_next):
 def health():
     return {
         "status": "ok",
-        "instance": INSTANCE_NAME
+        "instance": INSTANCE_NAME,
+        "environment": ENV
     }
 
 

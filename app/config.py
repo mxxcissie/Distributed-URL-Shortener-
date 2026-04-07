@@ -2,21 +2,17 @@ import os
 
 ENV = os.getenv("ENV", "development")
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@db:5432/urlshortener"
-)
+INSTANCE_NAME = os.getenv("INSTANCE_NAME", "unknown-instance")
 
-REDIS_URL = os.getenv(
-    "REDIS_URL",
-    "redis://redis:6379/0"
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    if ENV == "development":
+        DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/urlshortener"
+    else:
+        raise RuntimeError("DATABASE_URL must be set")
 
-BASE_URL = os.getenv(
-    "BASE_URL",
-    "http://127.0.0.1:8000"
-)
+REDIS_URL = os.getenv("REDIS_URL")
+
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000")
 
 PORT = int(os.getenv("PORT", "8000"))
-
-INSTANCE_NAME = os.getenv("INSTANCE_NAME", "unknown-instance")
