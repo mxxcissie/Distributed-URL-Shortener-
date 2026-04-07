@@ -4,17 +4,35 @@ A production-style backend URL shortener built with FastAPI, PostgreSQL, Redis, 
 
 This project focuses on backend engineering beyond basic CRUD, including persistent storage, redirect caching, Redis-backed rate limiting, automated testing, and CI validation.
 
+## Live Demo
+
+Base URL: `https://url-shortener-gfp0.onrender.com`
+
+## Deployment
+
+- Deployed on Render (cloud platform)
+- Uses managed PostgreSQL for persistent storage
+- Redis is optional in cloud deployment and used locally for caching/rate limiting when available
+- Environment-based configuration enables seamless switching between local, Docker, and cloud environments
+
+## Quick Test
+
+```bash
+curl https://url-shortener-gfp0.onrender.com/health
+curl -X POST "https://url-shortener-gfp0.onrender.com/shorten" \
+  -H "Content-Type: application/json" \
+  -d '{"original_url":"https://www.google.com"}'
+```
+
 ## Why This Project
 
-This project was designed to demonstrate backend engineering fundamentals beyond simple CRUD applications, including:
+This project was built to simulate a production-style backend system rather than a simple CRUD app. It focuses on real-world backend concerns such as performance optimization, fault tolerance, and environment portability.
 
-- API design and validation
-- database persistence and schema design
-- caching strategies
-- rate limiting
-- containerized development
-- automated testing
-- CI workflow integration
+Key goals:
+- Design a scalable API with clear request/response contracts
+- Introduce caching and rate limiting as system-level concerns
+- Support multiple runtime environments (local, Docker, cloud)
+- Ensure reliability through automated testing and CI validation
 
 ## Features
 
@@ -28,12 +46,12 @@ This project was designed to demonstrate backend engineering fundamentals beyond
 
 ## Backend Highlights
 
-- FastAPI-based REST API for URL creation, redirect handling, and analytics
-- PostgreSQL as the durable source of truth for URL mappings and click counts
-- Redis used for both redirect caching and rate-limit counters
-- Docker Compose setup for reproducible multi-service local development
-- Automated pytest coverage for core backend flows
-- GitHub Actions CI to validate changes on push and pull request
+- Designed RESTful APIs using FastAPI for URL creation, redirection, and analytics
+- Implemented PostgreSQL-backed persistence for durable storage of URL mappings
+- Integrated Redis for caching and rate limiting with graceful fallback when unavailable
+- Containerized the application using Docker Compose for consistent local development
+- Built automated test coverage with pytest to validate core workflows
+- Configured GitHub Actions CI to run tests on every push and pull request
 
 ## Tech Stack
 
@@ -68,12 +86,9 @@ The service exposes a health check endpoint:
 ```http
 GET /health
 ```
-Example:
 ```bash
 curl http://127.0.0.1:8000/health
 ```
-
-## Run Locally
 
 ## How to Run Locally
 
@@ -162,11 +177,12 @@ PostgreSQL (persistent storage)
 - Rate limiting is applied only to POST /shorten to prevent abuse
 - Click counts are updated even on cache hits to maintain consistency
 - Short codes are generated randomly and checked for uniqueness
+- Designed Redis as an optional dependency, enabling the service to remain fully functional in environments without cache infrastructure
 
 ## Future Improvements
 
-- Custom short URL aliases
-- Expiration time for links
-- Analytics dashboard
-- Background processing for high-scale click tracking
-- Deployment to cloud platform (e.g., Render, Fly.io)
+- Introduce background workers for asynchronous click tracking
+- Add distributed rate limiting using centralized cache
+- Implement custom aliases and expiration policies
+- Build analytics aggregation pipeline for high-volume traffic
+- Deploy multi-instance setup with load balancing
