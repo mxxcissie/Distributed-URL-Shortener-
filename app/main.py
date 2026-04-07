@@ -36,6 +36,8 @@ def db_health():
 
 @app.get("/redis-health")
 def redis_health():
+    if not cache.redis_client:
+        return {"redis_status": "not_configured"}
     try:
         cache_ping = cache.redis_client.ping()
         return {"redis_status": "ok", "ping": cache_ping}

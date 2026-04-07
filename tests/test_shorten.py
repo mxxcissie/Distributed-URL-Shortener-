@@ -5,9 +5,15 @@ from app.cache import redis_client
 client = TestClient(app)
 
 
-def test_shorten_url():
+def clear_rate_limit_keys():
+    if not redis_client:
+        return
     for key in redis_client.keys("rate_limit:*"):
         redis_client.delete(key)
+
+
+def test_shorten_url():
+    clear_rate_limit_keys()
 
     response = client.post(
         "/shorten",
