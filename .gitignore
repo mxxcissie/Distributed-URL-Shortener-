@@ -1,13 +1,17 @@
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .pytest_cache/
 
 # Virtual environment
 venv/
+.env/
 
 # Environment files
 .env
+.env.*
 
 # Logs
 *.log
@@ -18,3 +22,13 @@ venv/
 # IDE
 .vscode/
 .idea/
+
+# Docker
+*.env.local
+
+# Coverage / testing
+.coverage
+htmlcov/
+
+# Misc
+*.sqlite3

@@ -69,9 +69,13 @@ Key goals:
 ## Project Structure
 
 ```text
-app/       # backend application code
-tests/     # automated tests
-scripts/   # helper scripts such as seed data
+app/                  # FastAPI application code
+nginx/                # Nginx configuration for load balancing
+tests/                # automated tests
+scripts/              # helper scripts (e.g., seed data)
+docker-compose.yml    # service orchestration
+Dockerfile            # app container definition
+requirements.txt      # dependencies
 ```
 
 ## Environment Variables
