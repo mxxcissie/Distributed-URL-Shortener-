@@ -1,13 +1,18 @@
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .pytest_cache/
+.mypy_cache/
 
-# Virtual environment
+# Virtual environments
 venv/
+.venv/
 
 # Environment files
 .env
+.env.*
 
 # Logs
 *.log
@@ -18,3 +23,15 @@ venv/
 # IDE
 .vscode/
 .idea/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Local databases
+*.sqlite3
+test.db
+
+# Build
+dist/
+build/

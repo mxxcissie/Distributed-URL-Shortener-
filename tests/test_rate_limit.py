@@ -1,22 +1,18 @@
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app
 from app.cache import redis_client
-
-pytestmark = pytest.mark.skipif(
-    redis_client is None,
-    reason="Redis not configured"
-)
-
-client = TestClient(app)
 
 
 def clear_rate_limit_keys():
+    if not redis_client:
+        return
     for key in redis_client.keys("rate_limit:*"):
         redis_client.delete(key)
 
 
-def test_rate_limit_on_shorten():
+def test_rate_limit_on_shorten(client):
+    if not redis_client:
+        pytest.skip("Redis not configured")
+
     clear_rate_limit_keys()
 
     for _ in range(5):

@@ -1,13 +1,41 @@
+# Git
 .git
 .gitignore
-.env
-.venv
-venv
-__pycache__
+
+# Python cache
+__pycache__/
 *.pyc
-.pytest_cache
-.mypy_cache
-.idea
-.vscode
-dist
-build
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+
+# Environment files
+.env
+.env.*
+
+# Tests & cache
+.pytest_cache/
+.mypy_cache/
+tests/
+
+# Local databases
+*.db
+*.sqlite3
+test.db
+
+# Logs
+*.log
+
+# Build artifacts
+dist/
+build/
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

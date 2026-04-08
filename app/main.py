@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,22 +10,36 @@ from sqlalchemy import text
 from app.database import engine, Base, get_db
 from app import schemas, crud, cache
 from app.rate_limiter import check_rate_limit
-from app.config import BASE_URL
+from app.config import BASE_URL, INSTANCE_NAME
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="URL Shortener API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting instance %s", INSTANCE_NAME)
+    Base.metadata.create_all(bind=engine)
+    yield
+    logger.info("Shutting down instance %s", INSTANCE_NAME)
+
+
+app = FastAPI(title="URL Shortener API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-Base.metadata.create_all(bind=engine)
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info("Instance %s handling %s %s", INSTANCE_NAME, request.method, request.url.path)
+    response = await call_next(request)
+    return response
 
 
 @app.get("/health")
@@ -70,7 +85,7 @@ def shorten_url(
 
         return {
             "short_code": db_url.short_code,
-            "short_url": f"{BASE_URL}/{db_url.short_code}"  
+            "short_url": f"{BASE_URL}/{db_url.short_code}"
         }
     except Exception as exc:
         logger.exception("Failed to create short URL")

@@ -1,5 +1,8 @@
 from fastapi import HTTPException, Request
 from app.cache import redis_client
+import logging
+
+logger = logging.getLogger(__name__)
 
 RATE_LIMIT = 5
 WINDOW_SECONDS = 60
@@ -12,18 +15,21 @@ def check_rate_limit(request: Request):
     client_ip = request.client.host if request.client else "unknown"
     redis_key = f"rate_limit:{client_ip}"
 
-    current_count = redis_client.get(redis_key)
+    try:
+        current_count = redis_client.incr(redis_key)
 
-    if current_count is None:
-        redis_client.set(redis_key, 1, ex=WINDOW_SECONDS)
+        if current_count == 1:
+            redis_client.expire(redis_key, WINDOW_SECONDS)
+
+        if current_count > RATE_LIMIT:
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded. Try again later."
+            )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.warning("Rate limiter failed for %s: %s", redis_key, e)
         return
-
-    current_count = int(current_count)
-
-    if current_count >= RATE_LIMIT:
-        raise HTTPException(
-            status_code=429,
-            detail="Rate limit exceeded. Try again later."
-        )
-
-    redis_client.incr(redis_key)

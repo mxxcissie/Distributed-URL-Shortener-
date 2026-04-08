@@ -1,8 +1,4 @@
-from fastapi.testclient import TestClient
-from app.main import app
 from app.cache import redis_client
-
-client = TestClient(app)
 
 
 def clear_rate_limit_keys():
@@ -12,7 +8,7 @@ def clear_rate_limit_keys():
         redis_client.delete(key)
 
 
-def test_stats_for_created_url():
+def test_stats_for_created_url(client):
     clear_rate_limit_keys()
 
     create_response = client.post(
