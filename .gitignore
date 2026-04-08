@@ -4,10 +4,11 @@ __pycache__/
 *.pyo
 *.pyd
 .pytest_cache/
+.mypy_cache/
 
-# Virtual environment
+# Virtual environments
 venv/
-.env/
+.venv/
 
 # Environment files
 .env
@@ -23,12 +24,14 @@ venv/
 .vscode/
 .idea/
 
-# Docker
-*.env.local
-
-# Coverage / testing
+# Coverage
 .coverage
 htmlcov/
 
-# Misc
+# Local databases
 *.sqlite3
+test.db
+
+# Build
+dist/
+build/

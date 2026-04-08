@@ -6,7 +6,7 @@ INSTANCE_NAME = os.getenv("INSTANCE_NAME", "unknown-instance")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    if ENV == "development":
+    if ENV in ("development", "test"):
         DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/urlshortener"
     else:
         raise RuntimeError("DATABASE_URL must be set")

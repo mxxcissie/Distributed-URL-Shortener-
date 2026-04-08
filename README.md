@@ -34,6 +34,14 @@ Key goals:
 - Support multiple runtime environments (local, Docker, cloud)
 - Ensure reliability through automated testing and CI validation
 
+## System Design Summary
+
+- Stateless FastAPI services behind an Nginx load balancer
+- PostgreSQL as the single source of truth for durability and consistency
+- Redis used for shared caching and distributed rate limiting
+- Horizontal scaling achieved via multiple application replicas
+- Graceful degradation when Redis is unavailable
+
 ## Features
 
 - Create short URLs with `POST /shorten`
@@ -98,7 +106,7 @@ curl http://127.0.0.1:8000/health
 
 ## How to Run Locally
 
-### Run Full Stack with Docker
+### Option 1 — Run Full Stack with Docker
 ```bash
 docker compose up --build
 ```
@@ -106,7 +114,7 @@ Open:
 - http://127.0.0.1:8000/docs
 - http://127.0.0.1:8000/health
 
-### Run App Locally (Services in Docker)
+### Option 2 — Run App Locally (Services in Docker)
 - Start required services:
 ```bash
 docker compose up -d db redis
@@ -120,17 +128,20 @@ source venv/bin/activate
 uvicorn app.main:app --reload
 ```
 
-### Run Tests
+## Run Tests
+
 ```bash
 pytest -v
 ```
 
-### Seed Sample Data
+## Seed Sample Data
+
 ```bash
 python -m scripts.seed
 ```
 
-### Quick Demo Flow
+## Quick Demo Flow
+
 - Start the full stack:
 ```bash
 docker compose up --build
@@ -190,15 +201,14 @@ Nginx Load Balancer
 - Ensured stateless application design so any instance can handle any request
 - Used Redis as a shared cache and coordination layer for distributed rate limiting
 - Used PostgreSQL as the single source of truth for URL mappings and analytics
+- Enforced uniqueness of short codes at the database level to ensure correctness under concurrent distributed writes
 
 ## Distributed Validation
 
-The distributed setup was validated locally by:
-
-- verifying requests were distributed across multiple FastAPI replicas via load balancing
-- verifying Redis cache hits across different instances
-- confirming global rate limiting enforcement across replicas
-- ensuring consistent click counts through shared PostgreSQL storage
+- confirmed load balancing by observing requests handled across multiple instances
+- verified shared Redis cache behavior across replicas
+- validated global rate limiting enforcement across instances
+- ensured consistent state via shared PostgreSQL storage
 
 ## Request Flow
 
@@ -228,7 +238,7 @@ The distributed setup was validated locally by:
 - The application is designed to be stateless, allowing any FastAPI instance to handle any request
 - Click counts are updated even on cache hits to maintain consistency between cache and persistent storage
 - Short codes are generated randomly and validated with a database uniqueness constraint to avoid collisions
-- Redis is treated as an optional dependency, allowing the service to remain functional without caching, with reduced performance
+- Redis is treated as an optional dependency, with graceful fallback to database queries to maintain system availability
 - Nginx is used as a load balancer to distribute incoming requests across multiple FastAPI instances for scalability and fault tolerance
 - The system is designed to support horizontal scaling by adding more application instances without changing the client interface
 
