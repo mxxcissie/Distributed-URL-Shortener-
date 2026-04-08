@@ -30,6 +30,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "https://url-shortener-frontend-av1x.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
