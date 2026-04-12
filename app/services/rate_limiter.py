@@ -1,5 +1,5 @@
 from fastapi import HTTPException, Request
-from app.cache import redis_client
+from app.services.cache import redis_client
 import logging
 
 logger = logging.getLogger(__name__)

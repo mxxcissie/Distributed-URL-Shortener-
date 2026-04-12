@@ -1,5 +1,5 @@
 import pytest
-from app.cache import redis_client
+from app.services.cache import redis_client
 
 
 def clear_rate_limit_keys():

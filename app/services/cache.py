@@ -1,6 +1,6 @@
 import redis
 import logging
-from app.config import REDIS_URL
+from app.core.config import REDIS_URL
 
 logger = logging.getLogger(__name__)
 

@@ -1,13 +1,11 @@
 # URL Shortener
 
-A production-style distributed URL shortener with a FastAPI backend and a lightweight React frontend, built using PostgreSQL, Redis, Docker, pytest, and GitHub Actions CI.
-
-This project emphasizes backend engineering beyond basic CRUD, focusing on scalability, performance optimization, fault tolerance, and production-ready system design.
+A production-style distributed URL shortener demonstrating caching, rate limiting, load balancing, and horizontal scalability. Built with a FastAPI backend, React frontend, PostgreSQL, Redis, Docker, and CI/CD (GitHub Actions).
 
 ## Live Demo
 
 - Frontend: https://url-shortener-frontend-av1x.onrender.com  
-- Backend API: https://url-shortener-gfp0.onrender.com
+- Backend API: https://url-shortener-gfp0.onrender.com/docs
 
 ## Frontend
 
@@ -30,7 +28,7 @@ The frontend communicates with the deployed FastAPI backend via REST APIs, enabl
 ## Quick Test
 
 - Frontend:
-Open the web UI: https://your-frontend-url.onrender.com
+  - Open the web UI: https://url-shortener-frontend-av1x.onrender.com
 
 - Backend API:
 ```bash
@@ -45,6 +43,7 @@ curl -X POST "https://url-shortener-gfp0.onrender.com/shorten" \
 This project was built to simulate a production-style distributed system incorporating real-world backend and system design principles, rather than a simple CRUD application.
 
 Key goals:
+
 - Design a scalable API with clear request/response contracts
 - Introduce caching and rate limiting as core system-level concerns
 - Support multiple runtime environments (local, Docker, cloud)
@@ -69,6 +68,24 @@ Key goals:
 - Run the full stack locally using Docker Compose
 - Validate system behavior with pytest and GitHub Actions CI
 - Support horizontal scaling via stateless application instances behind a load balancer
+- Benchmark cache performance (miss vs. hit latency)
+
+## Cache Performance Benchmark
+
+To validate the effectiveness of Redis caching, redirect latency was measured for cache misses (first request) and cache hits (subsequent requests).
+
+Run locally:
+```bash
+python scripts/benchmark_cache.py
+```
+
+Example results:
+
+- Cache miss latency: ~30–45 ms
+- Average cache hit latency: ~6 ms
+- Approximate speedup: ~5–7×
+
+This demonstrates that Redis caching significantly reduces redirect latency and minimizes repeated database queries in read-heavy workloads.
 
 ## Backend Highlights
 
@@ -79,6 +96,7 @@ Key goals:
 - Built automated test coverage with pytest to validate core workflows
 - Configured GitHub Actions CI to run tests on every push and pull request
 - Introduced Nginx as a load balancer to distribute traffic across multiple FastAPI instances
+- Validated Redis caching effectiveness using benchmark measurements (cache miss vs. hit latency)
 
 ## Tech Stack
 
@@ -96,11 +114,30 @@ Key goals:
 ## Project Structure
 
 ```text
-app/                  # FastAPI application code
+app/                  # FastAPI backend application
+  __init__.py
+  main.py             # application entrypoint
+  core/               # application configuration and environment setup
+    __init__.py
+    config.py
+  services/           # external services and infrastructure logic
+    __init__.py
+    cache.py
+    rate_limiter.py
+  crud.py             # database operations
+  database.py         # database connection and setup
+  models.py           # SQLAlchemy models
+  schemas.py          # Pydantic schemas
+  utils.py            # helper utilities
+
 frontend/             # React frontend (Vite, API integration)
 nginx/                # Nginx configuration for load balancing
 tests/                # automated tests
-scripts/              # helper scripts (e.g., seed data)
+
+scripts/
+  seed.py             # sample data loader
+  benchmark_cache.py  # measures cache miss vs. hit latency
+
 docker-compose.yml    # service orchestration
 Dockerfile            # app container definition
 requirements.txt      # backend dependencies
@@ -127,6 +164,7 @@ curl http://127.0.0.1:8000/health
 ## How to Run Locally
 
 ### Run Full Stack with Docker
+
 ```bash
 docker compose up --build
 ```
@@ -135,6 +173,7 @@ Open:
 - Backend health: http://127.0.0.1:8000/health
 
 ### Run Backend Locally (Services in Docker)
+
 - Start required services:
 ```bash
 docker compose up -d db redis
@@ -143,12 +182,17 @@ docker compose up -d db redis
 ```bash
 source venv/bin/activate
 ```
+- Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 - Run backend:
 ```bash
 uvicorn app.main:app --reload
 ```
 
 ### Run Frontend Locally
+
 ```bash
 cd frontend
 npm install
@@ -180,7 +224,8 @@ docker compose up --build
 - Open the returned short URL in your browser to verify redirection
 - Check click statistics using the UI or via: `GET /stats/{short_code}`
 
-### Optional (API-level testing):
+### Optional (API-level testing)
+
 - Open API docs: http://127.0.0.1:8000/docs
 - Create a short URL using `POST /shorten`
 ```json
@@ -196,12 +241,14 @@ This project demonstrates a horizontally scalable, distributed system with a Rea
 The architecture is designed for scalability, fault tolerance, and consistent behavior across multiple application instances.
 
 ### Components
+
 - Nginx load balancer
 - 3 FastAPI application replicas
 - PostgreSQL as the durable, shared source of truth
 - Redis for shared caching and distributed rate limiting
 
 ### System Request Flow
+
 1. User interacts with the React frontend or sends a request directly to Nginx
 2. Nginx routes the request to one FastAPI replica
 3. The selected instance processes the request and interacts with shared PostgreSQL and Redis
@@ -247,12 +294,14 @@ Nginx Load Balancer
 ## Request Flow
 
 ### Create Short URL (`POST /shorten`)
+
 - Request enters the FastAPI service
 - Redis-backed rate limiter validates request frequency
 - A short code is generated and checked for uniqueness
 - Mapping is stored in PostgreSQL
 
 ### Redirect (`GET /{short_code}`)
+
 - FastAPI checks Redis cache for the short code
 - On cache hit → return redirect immediately (low latency)
 - On cache miss:
@@ -262,12 +311,14 @@ Nginx Load Balancer
   - Return redirect response
 
 ### Stats (`GET /stats/{short_code}`)
+
 - Retrieve URL metadata and click count from PostgreSQL
 
 ## Design Notes
 
 - PostgreSQL serves as the single source of truth for URL mappings and analytics, ensuring consistency across all application instances
 - Redis is used as a shared cache layer to optimize read-heavy redirect traffic and reduce database load
+- Cache effectiveness is validated through latency benchmarking, demonstrating faster response times for repeated requests
 - Rate limiting is enforced using Redis to ensure global limits across all replicas, preventing per-instance bypass
 - The application is stateless, allowing any FastAPI instance to handle any request
 - Click counts are updated even on cache hits to maintain consistency between cache and persistent storage
