@@ -12,7 +12,12 @@ from app.database import engine, Base, get_db
 from app import schemas, crud
 from app.services import cache
 from app.services.rate_limiter import check_rate_limit
-from app.core.config import BASE_URL, INSTANCE_NAME
+from app.core.config import (
+    AUTO_CREATE_SCHEMA,
+    BASE_URL,
+    CORS_ALLOW_ORIGINS,
+    INSTANCE_NAME,
+)
 
 
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +27,11 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting instance %s", INSTANCE_NAME)
-    Base.metadata.create_all(bind=engine)
+    if AUTO_CREATE_SCHEMA:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Automatic schema creation enabled for instance %s", INSTANCE_NAME)
+    else:
+        logger.info("Automatic schema creation disabled for instance %s", INSTANCE_NAME)
     yield
     logger.info("Shutting down instance %s", INSTANCE_NAME)
 
@@ -32,10 +41,7 @@ app = FastAPI(title="URL Shortener API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://url-shortener-frontend-av1x.onrender.com",
-    ],
+    allow_origins=CORS_ALLOW_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -134,9 +140,7 @@ def redirect_to_url(short_code: str, db: Session = Depends(get_db)):
         if cached_url:
             logger.info("Cache hit for short code %s", short_code)
 
-            db_url = crud.get_url_by_code(db, short_code)
-            if db_url:
-                crud.increment_click_count(db, db_url)
+            crud.increment_click_count_by_code(db, short_code)
 
             return RedirectResponse(url=cached_url)
 

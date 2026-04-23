@@ -23,3 +23,7 @@ def test_redirect_to_original_url(client):
 
     assert redirect_response.status_code in (307, 302)
     assert redirect_response.headers["location"] == "https://www.google.com/"
+
+    stats_response = client.get(f"/stats/{short_code}")
+    assert stats_response.status_code == 200
+    assert stats_response.json()["click_count"] == 1

@@ -1,10 +1,11 @@
+import os
 import statistics
 import time
 import requests
 
-BASE_URL = "http://127.0.0.1:8000"
-ORIGINAL_URL = "https://www.google.com"
-HIT_RUNS = 20
+BASE_URL = os.getenv("BENCHMARK_BASE_URL", "http://127.0.0.1:8000")
+ORIGINAL_URL = os.getenv("BENCHMARK_ORIGINAL_URL", "https://www.google.com")
+HIT_RUNS = int(os.getenv("BENCHMARK_HIT_RUNS", "20"))
 
 def create_short_url() -> str:
     resp = requests.post(

@@ -33,3 +33,16 @@ def increment_click_count(db: Session, db_url):
     db.commit()
     db.refresh(db_url)
     return db_url
+
+
+def increment_click_count_by_code(db: Session, short_code: str) -> bool:
+    updated_rows = (
+        db.query(models.URL)
+        .filter(models.URL.short_code == short_code)
+        .update(
+            {models.URL.click_count: models.URL.click_count + 1},
+            synchronize_session=False,
+        )
+    )
+    db.commit()
+    return updated_rows > 0

@@ -8,11 +8,24 @@ RATE_LIMIT = 5
 WINDOW_SECONDS = 60
 
 
+def get_client_identifier(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        first_hop = forwarded_for.split(",")[0].strip()
+        if first_hop:
+            return first_hop
+
+    if request.client and request.client.host:
+        return request.client.host
+
+    return "unknown"
+
+
 def check_rate_limit(request: Request):
     if not redis_client:
         return
 
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_identifier(request)
     redis_key = f"rate_limit:{client_ip}"
 
     try:

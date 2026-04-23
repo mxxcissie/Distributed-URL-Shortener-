@@ -32,6 +32,12 @@ test.db
 # Build artifacts
 dist/
 build/
+frontend/dist/
+frontend/.vite/
+frontend/node_modules/
+coverage/
+frontend/coverage/
+htmlcov/
 
 # OS
 .DS_Store

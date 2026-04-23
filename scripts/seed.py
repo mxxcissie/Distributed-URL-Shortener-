@@ -1,14 +1,12 @@
 from sqlalchemy.orm import Session
 import logging
-from app.database import SessionLocal, engine, Base
+from app.database import SessionLocal
 from app.models import URL
 
 logger = logging.getLogger(__name__)
 
 
 def seed_data():
-    Base.metadata.create_all(bind=engine)
-
     db: Session = SessionLocal()
 
     sample_urls = [
@@ -30,6 +28,7 @@ def seed_data():
     except Exception as e:
         db.rollback()
         logger.error("Seeding failed: %s", e)
+        logger.error("Run `python3 -m alembic upgrade head` before seeding a fresh database.")
 
     finally:
         db.close()

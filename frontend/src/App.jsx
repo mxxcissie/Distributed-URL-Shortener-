@@ -1,7 +1,26 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import "./App.css";
 
-const API_BASE = "https://url-shortener-gfp0.onrender.com";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+async function getErrorMessage(response, fallbackMessage) {
+  try {
+    const data = await response.json();
+
+    if (typeof data?.detail === "string" && data.detail.trim()) {
+      return data.detail;
+    }
+
+    if (typeof data?.message === "string" && data.message.trim()) {
+      return data.message;
+    }
+  } catch {
+    return fallbackMessage;
+  }
+
+  return fallbackMessage;
+}
 
 export default function App() {
   const [originalUrl, setOriginalUrl] = useState("");
@@ -47,7 +66,9 @@ export default function App() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to shorten URL.");
+        throw new Error(
+          await getErrorMessage(response, "Failed to shorten URL."),
+        );
       }
 
       const data = await response.json();
@@ -84,7 +105,9 @@ export default function App() {
       const response = await fetch(`${API_BASE}/stats/${statsCode}`);
 
       if (!response.ok) {
-        throw new Error("Failed to fetch stats.");
+        throw new Error(
+          await getErrorMessage(response, "Failed to fetch stats."),
+        );
       }
 
       const data = await response.json();

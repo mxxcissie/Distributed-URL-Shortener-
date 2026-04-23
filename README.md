@@ -1,6 +1,6 @@
 # URL Shortener
 
-A production-style distributed URL shortener demonstrating caching, rate limiting, load balancing, and horizontal scalability. Built with a FastAPI backend, React frontend, PostgreSQL, Redis, Docker, and CI/CD (GitHub Actions).
+A production-style distributed URL shortener demonstrating caching, rate limiting, load balancing, and horizontal scalability. Built with a FastAPI backend, React frontend, PostgreSQL, Redis, Docker, and CI (GitHub Actions).
 
 ## Live Demo
 
@@ -17,11 +17,14 @@ A lightweight React frontend provides a simple interface for:
 
 The frontend communicates with the deployed FastAPI backend via REST APIs, enabling end-to-end interaction with the distributed system.
 
+When the backend returns structured error details, such as rate-limit responses, the frontend surfaces those messages in the UI.
+
 ## Deployment
 
 - Deployed on Render (cloud platform)
 - Uses managed PostgreSQL as the persistent source of truth
 - Redis is used as a shared cache and coordination layer in distributed environments, with graceful fallback when unavailable
+- Reverse proxies should preserve `X-Forwarded-For` so Redis-backed rate limiting can identify individual clients correctly
 - Environment-based configuration enables seamless switching between local, Docker, and cloud deployments
 - Frontend deployed as a static site on Render, providing a user interface for interacting with backend APIs
 
@@ -55,6 +58,7 @@ Key goals:
 - Stateless FastAPI services behind an Nginx load balancer
 - PostgreSQL as the single source of truth for durability and consistency
 - Redis used for shared caching and distributed rate limiting
+- Rate limiting uses the first `X-Forwarded-For` address when requests pass through a reverse proxy or load balancer
 - Horizontal scaling achieved via multiple stateless application replicas
 - Graceful degradation when Redis is unavailable
 
@@ -66,7 +70,7 @@ Key goals:
 - Cache redirect lookups using Redis
 - Enforce request rate limits using Redis-backed distributed rate limiting
 - Run the full stack locally using Docker Compose
-- Validate system behavior with pytest and GitHub Actions CI
+- Validate backend behavior with pytest, frontend behavior with Vitest, and backend CI checks with GitHub Actions
 - Support horizontal scaling via stateless application instances behind a load balancer
 - Benchmark cache performance (miss vs. hit latency)
 
@@ -76,14 +80,22 @@ To validate the effectiveness of Redis caching, redirect latency was measured fo
 
 Run locally:
 ```bash
-python scripts/benchmark_cache.py
+python3 scripts/benchmark_cache.py
+```
+
+Optional environment overrides:
+```bash
+BENCHMARK_BASE_URL=http://127.0.0.1:8000 \
+BENCHMARK_ORIGINAL_URL=https://www.google.com \
+BENCHMARK_HIT_RUNS=20 \
+python3 scripts/benchmark_cache.py
 ```
 
 Example results:
 
-- Cache miss latency: ~30–45 ms
-- Average cache hit latency: ~6 ms
-- Approximate speedup: ~5–7×
+- Cache miss latency: ~10–32 ms
+- Average cache hit latency: ~8–11 ms
+- Approximate speedup: ~1–3×
 
 This demonstrates that Redis caching significantly reduces redirect latency and minimizes repeated database queries in read-heavy workloads.
 
@@ -93,8 +105,8 @@ This demonstrates that Redis caching significantly reduces redirect latency and 
 - Implemented PostgreSQL-backed persistence as the durable source of truth for URL mappings and analytics
 - Integrated Redis for shared caching and distributed rate limiting with graceful fallback when unavailable
 - Containerized and orchestrated multiple application instances using Docker Compose to simulate a distributed environment
-- Built automated test coverage with pytest to validate core workflows
-- Configured GitHub Actions CI to run tests on every push and pull request
+- Built automated test coverage with pytest for the backend and Vitest for the frontend
+- Configured GitHub Actions CI to run backend tests on every push and pull request
 - Introduced Nginx as a load balancer to distribute traffic across multiple FastAPI instances
 - Validated Redis caching effectiveness using benchmark measurements (cache miss vs. hit latency)
 
@@ -105,10 +117,13 @@ This demonstrates that Redis caching significantly reduces redirect latency and 
 - PostgreSQL
 - Redis
 - SQLAlchemy
+- Alembic
 - React
 - Docker / Docker Compose
 - Nginx
 - pytest
+- Vitest
+- React Testing Library
 - GitHub Actions
 
 ## Project Structure
@@ -130,7 +145,16 @@ app/                  # FastAPI backend application
   schemas.py          # Pydantic schemas
   utils.py            # helper utilities
 
+alembic/              # Alembic migration environment
+  versions/           # migration revision files
+alembic.ini           # Alembic configuration
+
 frontend/             # React frontend (Vite, API integration)
+  src/
+    App.jsx           # main frontend application
+    App.test.jsx      # frontend UI tests
+    test/             # frontend test setup
+
 nginx/                # Nginx configuration for load balancing
 tests/                # automated tests
 
@@ -149,28 +173,35 @@ requirements.txt      # backend dependencies
 - `DATABASE_URL` — PostgreSQL connection string
 - `REDIS_URL` — Redis connection string (optional)
 - `BASE_URL` — base URL for generated short links
+- `CORS_ALLOW_ORIGINS` — comma-separated frontend origins allowed to call the API
+- `AUTO_CREATE_SCHEMA` — enables automatic table creation on startup; defaults to enabled in development/test and disabled in production-style environments
 - `PORT` — application port
 
 ## Health Check
 
 The service exposes a health check endpoint:
+
 ```http
 GET /health
 ```
+
 ```bash
 curl http://127.0.0.1:8000/health
 ```
 
 ## How to Run Locally
 
-### Run Full Stack with Docker
+### Run Backend Stack with Docker
 
 ```bash
 docker compose up --build
 ```
+
 Open:
 - Backend API docs: http://127.0.0.1:8000/docs
 - Backend health: http://127.0.0.1:8000/health
+
+The Docker Compose backend stack runs `python -m alembic upgrade head` before starting the FastAPI replicas, so a fresh database is migrated automatically.
 
 ### Run Backend Locally (Services in Docker)
 
@@ -178,47 +209,124 @@ Open:
 ```bash
 docker compose up -d db redis
 ```
+
 - Activate virtual environment:
 ```bash
 source venv/bin/activate
 ```
+
 - Install dependencies:
 ```bash
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
+
+- Configure local environment:
+```bash
+export BASE_URL=http://127.0.0.1:8000
+```
+
+For local runs, make sure `DATABASE_URL`, `REDIS_URL`, `BASE_URL`, and `AUTO_CREATE_SCHEMA` are set through your `.env` file or exported in the shell.
+
+Example local backend environment:
+```bash
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/urlshortener
+export REDIS_URL=redis://localhost:6379/0
+export BASE_URL=http://127.0.0.1:8000
+export AUTO_CREATE_SCHEMA=false
+```
+
+- Apply migrations:
+```bash
+python3 -m alembic upgrade head
+```
+
 - Run backend:
 ```bash
-uvicorn app.main:app --reload
+python3 -m uvicorn app.main:app --reload
 ```
+
+`BASE_URL` controls the short links returned by the API, so set it to the backend address you want clients to use.
 
 ### Run Frontend Locally
 
 ```bash
 cd frontend
 npm install
+export VITE_API_BASE_URL=http://127.0.0.1:8000
 npm run dev
 ```
+
 Open:
 Frontend: http://localhost:5173
 
+`VITE_API_BASE_URL` tells the frontend which backend API to call in local development or deployment environments.
+
 ## Run Tests
 
+- Backend tests:
 ```bash
-pytest -v
+python3 -m pytest -v
 ```
+
+- Frontend tests:
+```bash
+cd frontend
+npm run test:run
+```
+
+The frontend uses Vitest and React Testing Library to cover core UI flows such as shorten success, stats fetch success, and backend error display.
+
+GitHub Actions currently runs backend tests on every push and pull request. Frontend tests are available locally with `npm run test:run`.
+
+## Database Migrations
+
+This project uses Alembic for schema migrations.
+
+- Apply the latest migrations:
+```bash
+python3 -m alembic upgrade head
+```
+
+- Create a new migration after changing models:
+```bash
+python3 -m alembic revision --autogenerate -m "describe change"
+```
+
+- Check the current revision:
+```bash
+python3 -m alembic current
+```
+
+- For normal development and deployment, prefer migrations with:
+```bash
+AUTO_CREATE_SCHEMA=false
+```
+
+`AUTO_CREATE_SCHEMA=true` is still available for quick demo or prototyping workflows, but `AUTO_CREATE_SCHEMA=false` should be the default once the schema is managed by Alembic.
 
 ## Seed Sample Data
 
 ```bash
-python -m scripts.seed
+python3 -m alembic upgrade head
+python3 -m scripts.seed
 ```
+
+Run the migration step first when seeding a fresh database.
 
 ## Quick Demo Flow
 
-- Start the full stack:
+- Start the backend stack:
 ```bash
 docker compose up --build
 ```
+
+- In another terminal, start the frontend:
+```bash
+cd frontend
+export VITE_API_BASE_URL=http://127.0.0.1:8000
+npm run dev
+```
+
 - Open the frontend UI: http://localhost:5173
 - Enter a URL (e.g., https://www.google.com) and generate a short link
 - Open the returned short URL in your browser to verify redirection

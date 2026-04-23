@@ -27,6 +27,8 @@ venv/
 # Coverage
 .coverage
 htmlcov/
+coverage/
+frontend/coverage/
 
 # Local databases
 *.sqlite3
