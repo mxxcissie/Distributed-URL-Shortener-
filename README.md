@@ -1,15 +1,43 @@
 # URL Shortener
 
-A production-style distributed URL shortener demonstrating caching, rate limiting, load balancing, and horizontal scalability. Built with a FastAPI backend, React frontend, PostgreSQL, Redis, Docker, and CI (GitHub Actions).
+Production-style distributed system with stateless FastAPI services, Redis-backed caching and rate limiting, PostgreSQL persistence, and Nginx load balancing.
+
+## Why This Project
+
+This project demonstrates how production-grade backend systems handle scalability, caching, rate limiting, and fault tolerance beyond basic CRUD applications.
+
+Key goals:
+
+- Design a scalable API with clear request/response contracts
+- Introduce caching and rate limiting as core system-level concerns
+- Support multiple runtime environments (local, Docker, cloud)
+- Ensure reliability through automated testing and CI validation
+- Provide end-to-end interaction through a lightweight frontend
+
+## Key Achievements
+
+- Reduced database load for hot URLs using Redis caching, reducing redirect latency and eliminating repeated database queries for hot URLs (~`10-32 ms` to `8-11 ms` locally)
+- Built horizontally scalable stateless FastAPI services behind an Nginx load balancer
+- Implemented distributed rate limiting across replicas using Redis
+- Designed and deployed a distributed system with stateless services and shared infrastructure (PostgreSQL + Redis)
+- Deployed the React frontend and FastAPI backend to Render
 
 ## Live Demo
 
 - Frontend: https://url-shortener-frontend-av1x.onrender.com  
 - Backend API: https://url-shortener-gfp0.onrender.com/docs
 
+## Key Metrics
+
+- Cache hit latency: ~8–11 ms
+- Cache miss latency: ~10–32 ms
+- Supports horizontal scaling through stateless application replicas
+- Redis reduces repeated database queries for hot URLs
+- CI: automated backend tests on every push and pull request (GitHub Actions)
+
 ## Frontend
 
-A lightweight React frontend provides a simple interface for:
+A lightweight React frontend enables:
 
 - Creating short URLs
 - Viewing generated links
@@ -28,39 +56,28 @@ When the backend returns structured error details, such as rate-limit responses,
 - Environment-based configuration enables seamless switching between local, Docker, and cloud deployments
 - Frontend deployed as a static site on Render, providing a user interface for interacting with backend APIs
 
-## Quick Test
-
-- Frontend:
-  - Open the web UI: https://url-shortener-frontend-av1x.onrender.com
-
-- Backend API:
-```bash
-curl https://url-shortener-gfp0.onrender.com/health
-curl -X POST "https://url-shortener-gfp0.onrender.com/shorten" \
-  -H "Content-Type: application/json" \
-  -d '{"original_url":"https://www.google.com"}'
-```
-
-## Why This Project
-
-This project was built to simulate a production-style distributed system incorporating real-world backend and system design principles, rather than a simple CRUD application.
-
-Key goals:
-
-- Design a scalable API with clear request/response contracts
-- Introduce caching and rate limiting as core system-level concerns
-- Support multiple runtime environments (local, Docker, cloud)
-- Ensure reliability through automated testing and CI validation
-- Provide end-to-end interaction through a lightweight frontend
-
 ## System Design Summary
 
 - Stateless FastAPI services behind an Nginx load balancer
+- Stateless design eliminates the need for sticky sessions, enabling seamless horizontal scaling
 - PostgreSQL as the single source of truth for durability and consistency
+- Enforced strong consistency for URL creation using PostgreSQL uniqueness constraints under concurrent requests
 - Redis used for shared caching and distributed rate limiting
+- Designed for fault tolerance with Redis treated as optional; system falls back to PostgreSQL on cache failures
 - Rate limiting uses the first `X-Forwarded-For` address when requests pass through a reverse proxy or load balancer
 - Horizontal scaling achieved via multiple stateless application replicas
 - Graceful degradation when Redis is unavailable
+
+### Scalability Characteristics
+
+- Stateless services enable horizontal scaling without sticky sessions
+- Designed to handle high read throughput workloads by offloading repeated requests to Redis cache
+- Shared Redis keeps caching and rate limiting behavior consistent across replicas
+- PostgreSQL ensures strong consistency and durability for URL creation under concurrent requests
+
+## Design Tradeoffs
+
+- Tradeoff: prioritized read performance via caching while accepting eventual consistency for cached redirect data
 
 ## Features
 
@@ -95,9 +112,22 @@ Example results:
 
 - Cache miss latency: ~10–32 ms
 - Average cache hit latency: ~8–11 ms
-- Approximate speedup: ~1–3×
+- Reduced repeated database queries for hot URLs
 
-This demonstrates that Redis caching significantly reduces redirect latency and minimizes repeated database queries in read-heavy workloads.
+While latency improvement is modest in local testing, Redis caching reduces repeated database queries and improves scalability for read-heavy workloads.
+
+## Quick Test
+
+- Frontend:
+  - Open the web UI: https://url-shortener-frontend-av1x.onrender.com
+
+- Backend API:
+```bash
+curl https://url-shortener-gfp0.onrender.com/health
+curl -X POST "https://url-shortener-gfp0.onrender.com/shorten" \
+  -H "Content-Type: application/json" \
+  -d '{"original_url":"https://www.google.com"}'
+```
 
 ## Backend Highlights
 
