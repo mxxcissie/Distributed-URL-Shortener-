@@ -16,7 +16,7 @@ Key goals:
 
 ## Key Achievements
 
-- Reduced database load for hot URLs using Redis caching, reducing redirect latency and eliminating repeated database queries for hot URLs (~`10-32 ms` to `8-11 ms` locally)
+- Reduced database load for hot URLs using Redis caching, cutting local redirect latency from ~`10–32 ms` to `8–11 ms` and improving read-heavy scalability
 - Built horizontally scalable stateless FastAPI services behind an Nginx load balancer
 - Implemented distributed rate limiting across replicas using Redis
 - Designed and deployed a distributed system with stateless services and shared infrastructure (PostgreSQL + Redis)
@@ -49,9 +49,9 @@ When the backend returns structured error details, such as rate-limit responses,
 
 ## Deployment
 
-- Frontend and backend deployed on Render
-- Uses Neon PostgreSQL as the persistent source of truth
-- Uses Upstash Redis for shared caching and distributed rate limiting, with graceful fallback when unavailable
+- Frontend and backend hosted on Render
+- Neon PostgreSQL provides the persistent source of truth in the hosted deployment
+- Upstash Redis provides shared caching and distributed rate limiting in the hosted deployment, with graceful fallback when unavailable
 - Reverse proxies should preserve `X-Forwarded-For` so Redis-backed rate limiting can identify individual clients correctly
 - Environment-based configuration enables seamless switching between local, Docker, and cloud deployments
 - The hosted backend is configured through `DATABASE_URL` and `REDIS_URL`
@@ -60,13 +60,11 @@ When the backend returns structured error details, such as rate-limit responses,
 
 - Stateless FastAPI services behind an Nginx load balancer
 - Stateless design eliminates the need for sticky sessions, enabling seamless horizontal scaling
-- PostgreSQL as the single source of truth for durability and consistency
+- PostgreSQL serves as the single source of truth for durability and consistency
 - Enforced strong consistency for URL creation using PostgreSQL uniqueness constraints under concurrent requests
-- Redis used for shared caching and distributed rate limiting
+- Redis handles shared caching and distributed rate limiting
 - Designed for fault tolerance with Redis treated as optional; system falls back to PostgreSQL on cache failures
 - Rate limiting uses the first `X-Forwarded-For` address when requests pass through a reverse proxy or load balancer
-- Horizontal scaling achieved via multiple stateless application replicas
-- Graceful degradation when Redis is unavailable
 
 ### Scalability Characteristics
 
@@ -118,10 +116,10 @@ While latency improvement is modest in local testing, Redis caching reduces repe
 
 ## Quick Test
 
-- Frontend:
-  - Open the web UI: https://url-shortener-frontend-av1x.onrender.com
+Frontend:
+[https://url-shortener-frontend-av1x.onrender.com](https://url-shortener-frontend-av1x.onrender.com)
 
-- Backend API:
+Backend API:
 ```bash
 curl https://url-shortener-gfp0.onrender.com/health
 curl -X POST "https://url-shortener-gfp0.onrender.com/shorten" \
@@ -202,7 +200,9 @@ requirements.txt      # backend dependencies
 
 - `ENV` — runtime environment (development / production)
 - `DATABASE_URL` — PostgreSQL connection string
+  Neon-hosted deployments should keep `sslmode=require`; the deployed app typically uses the pooled Neon URL.
 - `REDIS_URL` — Redis connection string (optional)
+  Upstash-hosted deployments typically use a `rediss://...` URL.
 - `BASE_URL` — base URL for generated short links
 - `CORS_ALLOW_ORIGINS` — comma-separated frontend origins allowed to call the API
 - `AUTO_CREATE_SCHEMA` — enables automatic table creation on startup; defaults to enabled in development/test and disabled in production-style environments
@@ -321,6 +321,10 @@ GitHub Actions currently runs backend tests on every push and pull request. Fron
 
 This project uses Alembic for schema migrations.
 
+For the hosted Neon setup:
+- Use the pooled Neon URL for the deployed application runtime
+- Use the direct Neon URL for Alembic, `psql`, and other admin tasks when needed
+
 - Apply the latest migrations:
 ```bash
 python3 -m alembic upgrade head
@@ -387,6 +391,8 @@ This project demonstrates a horizontally scalable, distributed system with a Rea
 
 The architecture is designed for scalability, fault tolerance, and consistent behavior across multiple application instances.
 
+The local distributed simulation uses Docker Compose, while the hosted deployment keeps the same application design with Render for app hosting, Neon for PostgreSQL, and Upstash for Redis.
+
 ### Components
 
 - Nginx load balancer
@@ -418,8 +424,10 @@ Nginx Load Balancer
       ↓
 +--------------------------------+
 |  Shared Infrastructure         |
-|  - Redis (cache + rate limit)  |
-|  - PostgreSQL (source of truth)|
+|  - Redis                       |
+|    (cache + rate limit)        |
+|  - PostgreSQL                  |
+|    (source of truth)           |
 +--------------------------------+
 ```
 
@@ -427,7 +435,7 @@ Nginx Load Balancer
 
 - Introduced Nginx as a load balancer to distribute traffic across multiple FastAPI instances
 - Ensured a stateless application design so any instance can handle any request
-- Used Redis as a shared cache and coordination layer for distributed rate limiting
+- Used Redis as a shared cache and coordination layer for rate limiting across replicas
 - Used PostgreSQL as the single source of truth for URL mappings and analytics
 - Enforced uniqueness of short codes at the database level to ensure correctness under concurrent distributed writes
 
@@ -463,16 +471,9 @@ Nginx Load Balancer
 
 ## Design Notes
 
-- PostgreSQL serves as the single source of truth for URL mappings and analytics, ensuring consistency across all application instances
-- Redis is used as a shared cache layer to optimize read-heavy redirect traffic and reduce database load
-- Cache effectiveness is validated through latency benchmarking, demonstrating faster response times for repeated requests
-- Rate limiting is enforced using Redis to ensure global limits across all replicas, preventing per-instance bypass
-- The application is stateless, allowing any FastAPI instance to handle any request
 - Click counts are updated even on cache hits to maintain consistency between cache and persistent storage
 - Short codes are generated randomly and validated with a database uniqueness constraint to avoid collisions
 - Redis is treated as an optional dependency, with graceful fallback to database queries to maintain system availability
-- Nginx distributes incoming requests across multiple FastAPI instances for scalability and fault tolerance
-- The system supports horizontal scaling by adding more application instances without changing the client interface
 
 ## Future Improvements
 
