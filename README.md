@@ -1,4 +1,4 @@
-# URL Shortener
+# Distributed URL Shortener
 
 Production-style distributed system with stateless FastAPI services, Redis-backed caching and rate limiting, PostgreSQL persistence, and Nginx load balancing.
 
