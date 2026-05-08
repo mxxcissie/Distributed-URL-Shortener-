@@ -49,12 +49,12 @@ When the backend returns structured error details, such as rate-limit responses,
 
 ## Deployment
 
-- Deployed on Render (cloud platform)
-- Uses managed PostgreSQL as the persistent source of truth
-- Redis is used as a shared cache and coordination layer in distributed environments, with graceful fallback when unavailable
+- Frontend and backend deployed on Render
+- Uses Neon PostgreSQL as the persistent source of truth
+- Uses Upstash Redis for shared caching and distributed rate limiting, with graceful fallback when unavailable
 - Reverse proxies should preserve `X-Forwarded-For` so Redis-backed rate limiting can identify individual clients correctly
 - Environment-based configuration enables seamless switching between local, Docker, and cloud deployments
-- Frontend deployed as a static site on Render, providing a user interface for interacting with backend APIs
+- The hosted backend is configured through `DATABASE_URL` and `REDIS_URL`
 
 ## System Design Summary
 
@@ -138,6 +138,7 @@ curl -X POST "https://url-shortener-gfp0.onrender.com/shorten" \
 - Built automated test coverage with pytest for the backend and Vitest for the frontend
 - Configured GitHub Actions CI to run backend tests on every push and pull request
 - Introduced Nginx as a load balancer to distribute traffic across multiple FastAPI instances
+- Demonstrated a split hosted architecture with Render for app hosting, Neon for PostgreSQL, and Upstash for Redis
 - Validated Redis caching effectiveness using benchmark measurements (cache miss vs. hit latency)
 
 ## Tech Stack
@@ -262,6 +263,14 @@ Example local backend environment:
 export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/urlshortener
 export REDIS_URL=redis://localhost:6379/0
 export BASE_URL=http://127.0.0.1:8000
+export AUTO_CREATE_SCHEMA=false
+```
+
+Example hosted provider environment:
+```bash
+export DATABASE_URL=postgresql://<user>:<password>@<neon-host>/<database>?sslmode=require
+export REDIS_URL=rediss://default:<password>@<upstash-host>:6379
+export BASE_URL=https://your-backend-domain.onrender.com
 export AUTO_CREATE_SCHEMA=false
 ```
 
